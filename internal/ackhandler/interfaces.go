@@ -3,8 +3,9 @@ package ackhandler
 import (
 	"time"
 
-	"github.com/quic-go/quic-go/internal/protocol"
-	"github.com/quic-go/quic-go/internal/wire"
+	"github.com/apernet/quic-go/congestion"
+	"github.com/apernet/quic-go/internal/protocol"
+	"github.com/apernet/quic-go/internal/wire"
 )
 
 // SentPacketHandler handles ACKs received for outgoing packets
@@ -35,6 +36,8 @@ type SentPacketHandler interface {
 
 	GetLossDetectionTimeout() time.Time
 	OnLossDetectionTimeout() error
+
+	SetCongestionControl(congestion.CongestionControl)
 }
 
 type sentPacketTracker interface {

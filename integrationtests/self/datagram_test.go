@@ -10,9 +10,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/quic-go/quic-go"
-	quicproxy "github.com/quic-go/quic-go/integrationtests/tools/proxy"
-	"github.com/quic-go/quic-go/internal/wire"
+	"github.com/apernet/quic-go"
+	quicproxy "github.com/apernet/quic-go/integrationtests/tools/proxy"
+	"github.com/apernet/quic-go/internal/wire"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -64,7 +64,7 @@ var _ = Describe("Datagram test", func() {
 					maxDatagramMessageSize := f.MaxDataLen(maxDatagramSize, conn.ConnectionState().Version)
 					b := make([]byte, maxDatagramMessageSize+1)
 					Expect(conn.SendDatagram(b)).To(MatchError(&quic.DatagramTooLargeError{
-						PeerMaxDatagramFrameSize: int64(maxDatagramMessageSize),
+						MaxDataLen: int64(maxDatagramMessageSize),
 					}))
 					wg.Wait()
 				}

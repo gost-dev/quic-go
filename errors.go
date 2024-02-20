@@ -3,7 +3,7 @@ package quic
 import (
 	"fmt"
 
-	"github.com/quic-go/quic-go/internal/qerr"
+	"github.com/apernet/quic-go/internal/qerr"
 )
 
 type (
@@ -64,7 +64,7 @@ func (e *StreamError) Error() string {
 
 // DatagramTooLargeError is returned from Connection.SendDatagram if the payload is too large to be sent.
 type DatagramTooLargeError struct {
-	PeerMaxDatagramFrameSize int64
+	MaxDataLen int64
 }
 
 func (e *DatagramTooLargeError) Is(target error) bool {

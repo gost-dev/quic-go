@@ -13,15 +13,16 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/quic-go/quic-go/internal/ackhandler"
-	"github.com/quic-go/quic-go/internal/flowcontrol"
-	"github.com/quic-go/quic-go/internal/handshake"
-	"github.com/quic-go/quic-go/internal/logutils"
-	"github.com/quic-go/quic-go/internal/protocol"
-	"github.com/quic-go/quic-go/internal/qerr"
-	"github.com/quic-go/quic-go/internal/utils"
-	"github.com/quic-go/quic-go/internal/wire"
-	"github.com/quic-go/quic-go/logging"
+	"github.com/apernet/quic-go/congestion"
+	"github.com/apernet/quic-go/internal/ackhandler"
+	"github.com/apernet/quic-go/internal/flowcontrol"
+	"github.com/apernet/quic-go/internal/handshake"
+	"github.com/apernet/quic-go/internal/logutils"
+	"github.com/apernet/quic-go/internal/protocol"
+	"github.com/apernet/quic-go/internal/qerr"
+	"github.com/apernet/quic-go/internal/utils"
+	"github.com/apernet/quic-go/internal/wire"
+	"github.com/apernet/quic-go/logging"
 )
 
 type unpacker interface {
@@ -302,7 +303,7 @@ var newConnection = func(
 		// different from protocol.DefaultActiveConnectionIDLimit.
 		// If set to the default value, it will be omitted from the transport parameters, which will make
 		// old quic-go versions interpret it as 0, instead of the default value of 2.
-		// See https://github.com/quic-go/quic-go/pull/3806.
+		// See https://github.com/apernet/quic-go/pull/3806.
 		ActiveConnectionIDLimit:   protocol.MaxActiveConnectionIDs,
 		InitialSourceConnectionID: srcConnID,
 		RetrySourceConnectionID:   retrySrcConnID,
@@ -410,7 +411,7 @@ var newClientConnection = func(
 		// different from protocol.DefaultActiveConnectionIDLimit.
 		// If set to the default value, it will be omitted from the transport parameters, which will make
 		// old quic-go versions interpret it as 0, instead of the default value of 2.
-		// See https://github.com/quic-go/quic-go/pull/3806.
+		// See https://github.com/apernet/quic-go/pull/3806.
 		ActiveConnectionIDLimit:   protocol.MaxActiveConnectionIDs,
 		InitialSourceConnectionID: srcConnID,
 	}
@@ -869,6 +870,13 @@ func (s *connection) handlePacketImpl(rp receivedPacket) bool {
 			processed = s.handleShortHeaderPacket(p, destConnID)
 			break
 		}
+	}
+
+	// Hysteria connection migration
+	// Set remote address to the address of the last received valid packet
+	if s.perspective == protocol.PerspectiveServer && processed {
+		// Connection migration
+		s.conn.SetRemoteAddr(rp.remoteAddr)
 	}
 
 	p.buffer.MaybeRelease()
@@ -2354,9 +2362,10 @@ func (s *connection) SendDatagram(p []byte) error {
 	}
 
 	f := &wire.DatagramFrame{DataLenPresent: true}
-	if protocol.ByteCount(len(p)) > f.MaxDataLen(s.peerParams.MaxDatagramFrameSize, s.version) {
+	maxDataLen := f.MaxDataLen(s.peerParams.MaxDatagramFrameSize, s.version)
+	if protocol.ByteCount(len(p)) > maxDataLen {
 		return &DatagramTooLargeError{
-			PeerMaxDatagramFrameSize: int64(s.peerParams.MaxDatagramFrameSize),
+			MaxDataLen: int64(maxDataLen),
 		}
 	}
 	f.Data = make([]byte, len(p))
@@ -2387,4 +2396,8 @@ func (s *connection) NextConnection() Connection {
 	<-s.HandshakeComplete()
 	s.streamsMap.UseResetMaps()
 	return s
+}
+
+func (s *connection) SetCongestionControl(cc congestion.CongestionControl) {
+	s.sentPacketHandler.SetCongestionControl(cc)
 }
